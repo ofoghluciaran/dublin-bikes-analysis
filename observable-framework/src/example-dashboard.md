@@ -1,12 +1,30 @@
----
-theme: dashboard
-title: Example dashboard
-toc: false
----
+
+
+
+```js
+import * as duckdb from "npm:@duckdb/duckdb-wasm@1.28.0";
+
+import {DuckDBClient} from "npm:@observablehq/duckdb"
+
+const db = DuckDBClient.of({gaia: FileAttachment("./data/launches.parquet")});
+```
+
+```js
+const bins = db.sql`SELECT
+  *
+FROM
+  gaia
+limit 1`
+
+display(Inputs.table(bins))
+```
+
 
  ```js
 // Import the CSV file from user uploads or a URL
 const raw_data = FileAttachment("./data/new_data.csv").csv();
+
+
  
  
  
@@ -325,3 +343,4 @@ y_facet.addEventListener("input", renderPlot);
  
  
 ```
+

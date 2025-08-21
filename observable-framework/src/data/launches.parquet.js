@@ -58,4 +58,4 @@ const launchHistory = tsvParse(await text("https://planet4589.org/space/gcat/tsv
 })).filter((d) => d.date != null);
 
 // Write out csv formatted data.
-process.stdout.write(csvFormat(launchHistory));
+process.stdout.write(parquetFormat(launchHistory));
