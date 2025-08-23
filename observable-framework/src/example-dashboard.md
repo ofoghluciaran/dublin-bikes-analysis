@@ -2,31 +2,35 @@
 
 
 ```js
-import * as duckdb from "npm:@duckdb/duckdb-wasm@1.28.0";
+import * as duckdb from "npm:@duckdb/duckdb-wasm@1.29.0";
 
-import {DuckDBClient} from "npm:@observablehq/duckdb"
+import {DuckDBClient} from "npm:@observablehq/duckdb";
 
-const db = DuckDBClient.of({gaia: FileAttachment("./data/launches.parquet")});
+const db = DuckDBClient.of({gaias: FileAttachment("./data/duck.parquet").parquet()});
 ```
 
 ```js
 const bins = db.sql`SELECT
-  *
+  station_id, count(distinct last_reported)
 FROM
-  gaia
-limit 1`
+  gaias
+group by station_id`
 
 display(Inputs.table(bins))
 ```
-
+ghj
 
  ```js
 // Import the CSV file from user uploads or a URL
 const raw_data = FileAttachment("./data/new_data.csv").csv();
 
 
- 
- 
+ ```
+
+```js
+const dams = FileAttachment("data/news.parquet").parquet();
+display(Inputs.table(dams))
+
  
 ```
 ```js

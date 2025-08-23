@@ -1,9 +1,10 @@
 import duckdb
-import pyarrow
-import sys
 import pandas
 import sys
 import tempfile
+import pyarrow as pa
+import pyarrow.parquet as pq
+
 
 # Connect to a DuckDB database (or create one)
 con = duckdb.connect('my_duckdb.db')
@@ -34,4 +35,19 @@ df = con.execute(f"""
     FROM read_parquet('{s3_object_path}')
 """).df()
 
-df.to_csv(sys.stdout) 
+
+
+with tempfile.TemporaryFile() as f:
+    df.to_parquet(f)
+    f.seek(0)
+    sys.stdout.buffer.write(f.read())
+
+# buf = pa.BufferOutputStream()
+# table = pa.Table.from_pandas(df)
+# pq.write_table(table, buf, compression="snappy")
+
+# # Get the buffer as a bytes object
+# buf_bytes = buf.getvalue().to_pybytes()
+
+# # Write the bytes to standard output
+# sys.stdout.buffer.write(buf_bytes)

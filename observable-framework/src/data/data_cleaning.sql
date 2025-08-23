@@ -12,7 +12,7 @@ from (
         select distinct address,capacity,lat,lon
         from f_station_statusraw a
         where system_id = '"dublin_bikes"' 
-        and capacity is not null
+        and capacity is not null -- Some rows were duplicated, same station appearing twice, one with no details on its capacity.
         --group by 1,3
 ) a
 inner join dim_station_type b on a.address = b.address
@@ -41,3 +41,29 @@ from (
 inner join dim_bike_stations b 
     on a.address = b.address 
 ;
+
+
+
+
+-- tables to parquet
+
+
+
+CREATE TABLE parquet_f_bike_station_status
+WITH (
+    format = 'PARQUET',
+    -- Omit external_location to let Athena manage the data
+    -- and write it to its default S3 location
+    write_compression = 'SNAPPY' -- Optional but recommended for performance
+) AS
+SELECT *
+FROM f_bike_station_status;
+
+
+create table parquet_dim_bike_stations
+with (
+    format = 'PARQUET',
+    external_location = 's3://dublinbikeshistorical/raw/dim_bike_stations'
+) AS
+select *
+from dim_bike_stations

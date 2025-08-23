@@ -2,6 +2,19 @@
 title: Example report
 ---
 
+
+
+```js
+const dams = FileAttachment("data/news.parquet").parquet();
+display(Inputs.table(dams))
+
+ 
+```
+
+
+
+
+
 # A brief history of space exploration
 
 This report is a brief overview of the history and current state of rocket launches and space exploration.
