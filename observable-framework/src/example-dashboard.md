@@ -1,52 +1,60 @@
-
-
-
+## Dublin Bikes - What's the story?
+This analysis takes data from Dublin Bike's api through JC Deceaux and data.gov.ie. 
 ```js
+// These imports set up duckdb and then load in the data
 import * as duckdb from "npm:@duckdb/duckdb-wasm@1.29.0";
-
+ 
 import {DuckDBClient} from "npm:@observablehq/duckdb";
 
-const db = DuckDBClient.of({gaias: FileAttachment("./data/duck.parquet").parquet()});
+const db = DuckDBClient.of({bikes_data: FileAttachment("./data/duck.parquet").parquet(),
+  another: FileAttachment("./data/new_data.csv").csv()});
 ```
-
 ```js
-const bins = db.sql`SELECT
-  station_id, count(distinct last_reported)
-FROM
-  gaias
-group by station_id`
+const quick_view = db.sql`SELECT
+count(*)
+from bikes_data `
 
-display(Inputs.table(bins))
+display(Inputs.table(quick_view))
 ```
-ghj
 
  ```js
-// Import the CSV file from user uploads or a URL
-const raw_data = FileAttachment("./data/new_data.csv").csv();
 
+const result = await db.sql`
+SELECT 
+case
+when cast(hour_rounded as timestamp) >= '2024-03-30 01:00:00'::timestamp 
+  and cast(hour_rounded as timestamp) <  '2024-10-26 01:00:00'::timestamp
+then cast((cast(hour_rounded as timestamp) + interval '1 hour') as varchar)
+when cast(hour_rounded as timestamp) >= '2025-03-30 01:00:00'::timestamp 
+  and cast(hour_rounded as timestamp) <  '2025-10-26 01:00:00'::timestamp
+then cast((cast(hour_rounded as timestamp) + interval '1 hour') as varchar)
+else hour_rounded
+end as hour_rounded,
+station_type,
+hour,
+day,
+weekend,
+week,
+month,
+quarter,
+dayOfMonth,
+interactions
+FROM another
+where left(hour_rounded,7) <> '2025-05'
+
+`;
+display(Inputs.table(result))
+
+// Convert DuckDBResult to a plain array of objects ( needed for data viz )
+const raw_data = result.toArray();
 
  ```
 
 ```js
-const dams = FileAttachment("data/news.parquet").parquet();
-display(Inputs.table(dams))
+const test = FileAttachment("./data/new_data.csv").csv()
+```
+ 
 
- 
-```
-```js
-// Load CSV data
-// Load CSV data
-display(Inputs.table(raw_data))
-```
- 
-```js
-// Create a line plot showing the rolling average
-Inputs.table(raw_data, {columns:["hour_rounded", "interactions"], width: width < 400 ? width : 400})
-```
- 
-```js
-Inputs.radio(new Map([["Hourly (no smoothing)", 1] ,["Daily", 24], ["Weekly", 168], ["28-day period", 24 * 28]]), {value:1, label:"Rolling Average:"})
-```
 ```js
 import * as Plot from "npm:@observablehq/plot";
  
@@ -226,7 +234,7 @@ const get_title = (d) => {
   const avg = d3.format(",.0f")(d3.mean(d, (d) => d.value));
   const x_value = x_facet.value === "hour" ? d[0].hour + ":00 PST" : d[0][x_facet.value];
   const y_value = y_facet.value === "hour" ? d[0].hour + ":00 PST" : d[0][y_facet.value];
-  return `Avg. Demand: ${avg} MWh \n` +
+  return `Avg. Interactions: ${avg}  \n` +
     (x_facet.value == 'none' ? "" : `${capitalize(x_facet.value)}: ${x_value}\n `) +
     (y_facet.value == "none" ? "" : `${capitalize(y_facet.value)}: ${y_value}`);
 };
@@ -347,4 +355,5 @@ y_facet.addEventListener("input", renderPlot);
  
  
 ```
+
 
