@@ -1,5 +1,49 @@
+---
+sql:
+  bikes_data: ./data/duck.parquet
+  another:    ./data/new_data.csv
+  dim_stations:    ./data/dim_stations.parquet
+---
+
+ ```sql echo id = stations display
+SELECT *
+FROM dim_stations 
+``` 
+
+```sql echo
+SELECT *
+FROM bikes_data 
+```
+
+
+
 ## Dublin Bikes - What's the story?
 This analysis takes data from Dublin Bike's api through JC Deceaux and data.gov.ie. 
+
+
+```js
+import {map as landcoverMap} from "@d3/interrupted-sinu-mollweide";
+
+const maps = Plot.plot({
+  width: 800,
+  height: 600,
+  projection: "mercator",
+  marks: [
+    Plot.dot(stations, {
+      x: "lon",
+      y: "lat",
+      fill: d => d.station_type === "Dublin Central" ? "red" : "blue",
+      r: 4,
+      title: d => `${d.address} (${d.station_type})`
+    })
+  ],
+  x: {label: "Longitude"},
+  y: {label: "Latitude"}
+})
+
+display(maps)
+```
+
 ```js
 // These imports set up duckdb and then load in the data
 import * as duckdb from "npm:@duckdb/duckdb-wasm@1.29.0";
@@ -9,12 +53,13 @@ import {DuckDBClient} from "npm:@observablehq/duckdb";
 const db = DuckDBClient.of({bikes_data: FileAttachment("./data/duck.parquet").parquet(),
   another: FileAttachment("./data/new_data.csv").csv()});
 ```
-```js
+
+```js 
 const quick_view = db.sql`SELECT
-count(*)
+*
 from bikes_data `
 
-display(Inputs.table(quick_view))
+// display(Inputs.table(quick_view))
 ```
 
  ```js
@@ -43,7 +88,7 @@ FROM another
 where left(hour_rounded,7) <> '2025-05'
 
 `;
-display(Inputs.table(result))
+// display(Inputs.table(result))
 
 // Convert DuckDBResult to a plain array of objects ( needed for data viz )
 const raw_data = result.toArray();
@@ -261,7 +306,6 @@ const get_facet_options = (facet, direction = "x") => facet === "day"
  
 // Load the Temporal API using a Polyfill
 const { Temporal } = await import('@js-temporal/polyfill');
- 
  
  
 const data = raw_data.map((d) => {

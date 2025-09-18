@@ -14,7 +14,7 @@ con.execute("SET s3_secret_access_key='x';")
 con.execute("SET s3_region='eu-north-1';")
 
 s3_object_path = (
-    "s3://dublinbikeshistorical/cleaned/fact_station_status/20250918_194047_00623_x6va3_2ceaa28d-62dc-4008-9748-c3742febf798"
+    "s3://dublinbikeshistorical/cleaned/dim_addresses/20250918_205827_00559_aatkz_74e7e36d-0270-4c07-a4ba-c64bb03b009c"
 )
 
 # Execute query and return Arrow Table (no Pandas)
