@@ -19,11 +19,32 @@ s3_object_path = (
 
 # Execute query and return Arrow Table (no Pandas)
 arrow_table = con.execute(f"""
+with rates as (
     SELECT
-    address_id, hour(last_reported) as hours, avg(num_bikes_available) / (avg(num_bikes_available) + avg(num_docks_available)) * 100 as occupancy_rate
+    address_id, 
+    date(last_reported) dates,
+    hour(last_reported) as hours,
+    avg(num_docks_available),
+    (avg(num_bikes_available) + avg(num_docks_available)),
+    (avg(num_bikes_available) / (avg(num_bikes_available) + avg(num_docks_available))) * 100 as bike_availability_rate
     FROM read_parquet('{s3_object_path}')
-    group by 1,2
-    order by 1,2
+    group by 1,2,3
+    having ((avg(num_bikes_available)/ (avg(num_bikes_available) + avg(num_docks_available))) * 100 < 5
+    or (avg(num_bikes_available)  / (avg(num_bikes_available) + avg(num_docks_available))) * 100 >95
+    )
+    and (avg(num_bikes_available) + avg(num_docks_available)) >0
+    order by 1,2,3
+)
+select 
+    address_id, 
+    case when bike_availability_rate >95 then 'Empty' else 'Full' end as levels, 
+    count(hours) as num_hours,
+    round(avg(hours),0) as avg_time,
+    count(distinct dates) as num_day
+from rates
+where hours between 7 and 18
+group by 1,2
+order by 1,2
 """).arrow()
 
 # import pandas as pd

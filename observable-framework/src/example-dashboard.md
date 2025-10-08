@@ -1,48 +1,198 @@
 ---
 sql:
-  bikes_data: ./data/duck.parquet
+  occupancy_query: ./data/duck.parquet
+  bike_availability: ./data/bike_availability.parquet
   another:    ./data/new_data.csv
   dim_stations:    ./data/dim_stations.parquet
+  timestamps:    ./data/timestamps.parquet
 ---
+
+
+```sql 
+select *
+from bike_availability
+limit 10
+```
+
+```sql 
+select *
+from occupancy_query
+limit 10
+```
+
+```sql 
+select *
+from timestamps
+inner join dim_stations_ds
+limit 10
+```
+
+
+Here we have interactions by day. September's data is missing due to data issues on the providers side. We see a dip in bike usage over the Winter period with a sharp drop around Christmas.
+```sql id = weekly 
+select  strptime(substr(cast(hour_rounded as varchar),0,11),'%Y-%m-%d')as  week, cast(sum(interactions) as int) as weekly_interactions
+from timestamps
+group by 1
+order by 1
+```
+
+
+```js
+const weekl = Plot.plot({
+  x: {
+    tickRotate: -20,
+    label: "Date",
+  },
+  y: {
+    transform: (d) => d,
+    label: "↑ Interactions",
+    grid: 5
+  },
+  marks: [
+    Plot.ruleY([0]),
+    Plot.line(weekly, {
+      x: "week",
+      y: "weekly_interactions",
+      stroke: "steelblue"
+      })
+  ]
+});
+
+display(weekl)
+```
+
+
+
+
+
+
+```sql id = occup display
+select station_type, hours, avg(occupancy_rate) bike_availability_rate
+from occupancy_query bd
+inner join dim_stations ds on  bd.address_id = ds.address_id
+--  where ds.address_id in (55,93,21,54,28,19,32,61,74,57,68)
+group by 1,2
+```
+
+
+```js
+const occupan = occup.toArray()
+
+const occupancy = // assuming `occupan` is your table
+Plot.plot({
+  x: {
+    label: "Hour of Day",
+    tickFormat: d => d // show hour directly
+  },
+  y: {
+    label: "Bike Availability Rate (%)"
+  },
+  color: {
+    legend: true,
+    label: "Station Type"
+  },
+  marks: [
+    Plot.line(occupan, {
+      x: "hours",
+      y: "bike_availability_rate",
+      stroke: "station_type"
+    }),
+    Plot.dot(occupan, {
+      x: "hours",
+      y: "bike_availability_rate",
+      fill: "station_type"
+    })
+  ]
+})
+
+display(occupancy)
+```
 
  ```sql echo id = stations display
 SELECT *
 FROM dim_stations 
 ``` 
 
+
+```sql echo id = timesta display
+SELECT address_id, max(interactions)--hour_rounded, cast(interactions as integer)
+FROM timestamps
+group by 1
+``` 
+
+
+```sql echo id = timestam display
+SELECT 
+  address,
+  cast(SUM(interactions) as integer) AS total_interactions
+FROM timestamps t
+inner join dim_stations ds on ds.address_id = t.address_id
+GROUP BY ds.address
+ORDER BY 2 desc
+limit 10;
+``` 
+
+```js
+
+
+const bars = addTooltips(Plot.plot({
+  marginBottom: 60,
+  x: {
+    tickRotate: -20,
+    label: "Address",
+  },
+  y: {
+    transform: (d) => d /1000,
+    label: "↑ Interaction (Thousands)",
+    grid: 5
+  },
+  marks: [
+    Plot.ruleY([0]),
+    Plot.barY(timestam, {
+      x: "address",
+      y: "total_interactions",
+      sort: {x: "-y"},
+      fill: "steelblue"
+    })
+  ],
+    tooltip: {
+    fill: "red"
+  },
+  height: 500,
+  width: 800
+}),
+  { fill: "gray", opacity: 0.5, "stroke-width": "3px", stroke: "red" }
+);
+
+display(bars)
+```
+
+
+```js
+display(Inputs.table(timestam))
+```
+
+<!-- ```js
+const rawd = Array.from(timestamps, row => ({
+  ...row,
+  hour_rounded: new Date(row.hour_rounded) // if in ms
+}));
+display(rawd)
+``` -->
+
 ```sql echo
 SELECT *
-FROM bikes_data 
+FROM occupancy_query 
 ```
 
 
 
 ## Dublin Bikes - What's the story?
-This analysis takes data from Dublin Bike's api through JC Deceaux and data.gov.ie. 
+This analysis takes data from Dublin Bike's api through JC Deceaux and data.gov.ie and give an update for all stations every 5 minutes.
+
+Let's start by taking a look at some timeseries trends. The below chart gives a view of when Dubliners interact with the bikes. Each black line represents the average number of interactions in an hour. There is one for every hour of the year. The further to the right the line is, the more interactions there were and you'll see the colour appears more purple as the mean of the observations increases.
 
 
-```js
-import {map as landcoverMap} from "@d3/interrupted-sinu-mollweide";
-
-const maps = Plot.plot({
-  width: 800,
-  height: 600,
-  projection: "mercator",
-  marks: [
-    Plot.dot(stations, {
-      x: "lon",
-      y: "lat",
-      fill: d => d.station_type === "Dublin Central" ? "red" : "blue",
-      r: 4,
-      title: d => `${d.address} (${d.station_type})`
-    })
-  ],
-  x: {label: "Longitude"},
-  y: {label: "Latitude"}
-})
-
-display(maps)
-```
 
 ```js
 // These imports set up duckdb and then load in the data
@@ -50,14 +200,14 @@ import * as duckdb from "npm:@duckdb/duckdb-wasm@1.29.0";
  
 import {DuckDBClient} from "npm:@observablehq/duckdb";
 
-const db = DuckDBClient.of({bikes_data: FileAttachment("./data/duck.parquet").parquet(),
+const db = DuckDBClient.of({occupancy_query: FileAttachment("./data/duck.parquet").parquet(),
   another: FileAttachment("./data/new_data.csv").csv()});
 ```
 
 ```js 
 const quick_view = db.sql`SELECT
 *
-from bikes_data `
+from occupancy_query `
 
 // display(Inputs.table(quick_view))
 ```
@@ -92,7 +242,7 @@ where left(hour_rounded,7) <> '2025-05'
 
 // Convert DuckDBResult to a plain array of objects ( needed for data viz )
 const raw_data = result.toArray();
-
+// display(result.toArray())
  ```
 
 ```js
@@ -109,7 +259,7 @@ const facet_options = new Map(["Hour", "Day", "Weekend", "Week", "Month", "Quart
  
 const x_facet = Inputs.radio(facet_options, {
   label: "Break out Horizontally by:",
-  value: "quarter"
+  value: "weekend"
 })
 display(x_facet)
  
@@ -120,10 +270,9 @@ const y_facet = Inputs.radio(facet_options, {
 display(y_facet)
  
  
- 
+
 ```
  
-
 
 
 
@@ -273,6 +422,7 @@ const hover = (tip, pos, text) => {
 
 
 
+
  
 ```js
 const get_title = (d) => {
@@ -400,4 +550,85 @@ y_facet.addEventListener("input", renderPlot);
  
 ```
 
+How does bike availability change throughout the day and throughout the city?
 
+```js
+display(occupancy)
+
+```
+
+Dublin's city centre gets full during the day while the outskirts empties as people commute to work.
+
+
+What's more interesting is finding the stations that are frequently empty or too full to deposit a bike leading to disruptions.
+
+```sql id = bike_availabilit display
+select station_type, levels, address, num_day as num_days, num_hours, avg_time
+from bike_availability bd
+inner join dim_stations ds on  bd.address_id = ds.address_id
+where levels = 'Empty'
+order by num_days desc
+limit 10
+```
+```js
+const empty =Plot.plot({
+  marks: [
+    Plot.barY(bike_availabilit, { x: "address", y: "num_days" }),
+
+    () =>
+      Plot.plot({
+        // dimensions
+        marginLeft: 70,
+        marginRight: 50,
+        marginBottom: 50,
+        width: Math.min(width, 780),
+        height: 400,
+
+        marks: [
+          Plot.line(data, {
+            x: "address",
+            y: "num_hours",
+          }),
+          Plot.dot(data, {
+            x: "address",
+            y: "num_hours",
+            fill: "white"
+          })
+        ],
+        y: { axis: "right", nice: true, line: true }
+      })
+  ],
+
+  marginLeft: 70,
+  marginRight: 50,
+  marginBottom: 50,
+  width: Math.min(width, 780),
+  height: 400,
+
+  x: { tickRotate: -45, tickFormat: "" },
+  y: { axis: "left" }})
+```
+
+
+```js
+  const v1 = (d) => d.num_days;
+  const v2 = (d) => d.num_hours;
+  const y2 = d3.scaleLinear(d3.extent(bike_availabilit, v2), [0, d3.max(bike_availabilit, v1)]);
+  const diff = Plot.plot({
+    marks: [
+      Plot.axisY(y2.ticks(), {color: "steelblue", anchor: "right", label: "efficiency (mpg)", y: y2, tickFormat: y2.tickFormat()}),
+      Plot.ruleY([0]),
+      Plot.barY(bike_availabilit, {x: "address", y: v1}),
+      Plot.barY(bike_availabilit, Plot.mapY((D) => D.map(y2), {x: "address", y: v2, stroke: "steelblue"}))
+    ]
+  });
+
+  display(diff)
+```
+
+
+
+
+```js
+display(empty)
+```

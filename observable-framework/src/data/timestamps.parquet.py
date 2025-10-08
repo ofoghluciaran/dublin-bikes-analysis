@@ -14,26 +14,15 @@ con.execute("SET s3_secret_access_key='x';")
 con.execute("SET s3_region='eu-north-1';")
 
 s3_object_path = (
-    "s3://dublinbikeshistorical/cleaned/fact_station_status/20250918_194047_00623_x6va3_2ceaa28d-62dc-4008-9748-c3742febf798"
+    "s3://dublinbikeshistorical/cleaned/query__time_and_date_and_addresses/20250920_154035_00183_msxz7_ed253b2d-ff66-4083-aece-87e658e6a623"
 )
 
 # Execute query and return Arrow Table (no Pandas)
 arrow_table = con.execute(f"""
     SELECT
-    address_id, hour(last_reported) as hours, avg(num_bikes_available) / (avg(num_bikes_available) + avg(num_docks_available)) * 100 as occupancy_rate
+        *
     FROM read_parquet('{s3_object_path}')
-    group by 1,2
-    order by 1,2
 """).arrow()
-
-# import pandas as pd
-# print("max_columns:", pd.get_option('display.max_columns'))
-# print("width:", pd.get_option('display.width'))
-# print("expand_frame_repr:", pd.get_option('display.expand_frame_repr'))
-# print("max_colwidth:", pd.get_option('display.max_colwidth'))
-# print("num columns:", len(arrow_table.columns))
-# print("column names:", arrow_table.columns.tolist())   # shows every column name
-
 
 
 
